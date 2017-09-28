@@ -1,0 +1,76 @@
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-backend-protocol: http
+    service.beta.kubernetes.io/aws-load-balancer-ssl-cert: arn:aws:iam::<cert iam>
+    service.beta.kubernetes.io/aws-load-balancer-ssl-ports: https
+  name: kong-proxy
+spec:
+  type: LoadBalancer
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8000
+    protocol: TCP
+  - name: https
+    port: 443
+    targetPort: 8000
+    protocol: TCP
+  selector:
+    app: kong
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-backend-protocol: http
+    service.beta.kubernetes.io/aws-load-balancer-ssl-cert: arn:aws:iam::<cert iam>
+    service.beta.kubernetes.io/aws-load-balancer-ssl-ports: https
+  name: kong-admin
+spec:
+  type: LoadBalancer
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8001
+    protocol: TCP
+  - name: https
+    port: 443
+    targetPort: 8001
+    protocol: TCP
+  selector:
+    app: kong
+  loadBalancerSourceRanges:
+  - <ip1>/32
+  - <ip2>/32
+
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: kong-rc
+spec:
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        name: kong-rc
+        app: kong
+    spec:
+      containers:
+      - name: kong
+        image: kong
+        env:
+          - name: KONG_PG_PASSWORD
+            value: kong
+          - name: KONG_PG_HOST
+            value: postgres
+        ports:
+        - name: admin-http
+          containerPort: 8001
+          protocol: TCP
+        - name: proxy-http
+          containerPort: 8000
+          protocol: TCP
